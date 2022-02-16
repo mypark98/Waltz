@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//maybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="contest">
+
+   <insert id="insertBoard" parameterType="hashmap" useGeneratedKeys="true" keyProperty="PO_NUM">
+      <selectKey keyProperty="po_num" resultType="int" order="BEFORE">
+         SELECT POST_SEQ.nextval FROM DUAL
+      </selectKey>
+      <![CDATA[
+         INSERT INTO POST_TBL(
+            PO_NUM,
+            BO_NUM,
+            MEM_ID,
+            PO_TITLE,
+            PO_CONTENT,
+            PO_DATE,
+            PO_CLICKS,
+            PO_RECOM_CNT,
+            PO_NOTIFICION,
+            PO_IS_USED
+            
+         )
+         VALUES
+         (
+            #{po_num},
+            1,
+            #{MEM_ID},
+            #{PO_TITLE},
+            #{PO_CONTENT},
+            SYSDATE,
+            0,
+            0,
+            0,
+            1   
+         )
+      ]]>
+   </insert>
+   
+   <!-- 첨부파일 삽입 -->
+   <insert id="insertFile" parameterType="hashMap">
+      <![CDATA[ 
+         INSERT INTO FILE_TBL(
+            FI_NUM,
+            BO_NUM,
+                PO_NUM,
+            ORG_FILE_NAME,
+            STORED_FILE_NAME,
+            FILE_SIZE,
+            MEM_ID
+         ) 
+         VALUES
+         (
+            file_seq.nextval, 
+            1, 
+            #{po_num}, 
+            #{ORG_FILE_NAME},
+            #{STORED_FILE_NAME},
+            #{FILE_SIZE},
+            #{MEM_ID}
+         )
+      ]]> 
+   </insert>
+
+   <select id="contestBoardDetail" resultType="hashmap"
+      parameterType="hashmap">
+      <![CDATA[               
+         SELECT
+               PO_NUM,
+            BO_NUM,
+            MEM_ID,
+            PO_TITLE,
+            PO_CONTENT,
+            PO_CLICKS,
+            PO_RECOM_CNT,
+                CASE WHEN TO_CHAR(PO_DATE, 'YY/MM/DD') = TO_CHAR(SYSDATE, 'YY/MM/DD')
+                THEN TO_CHAR(PO_DATE,'HH:MI')
+                ELSE TO_CHAR(PO_DATE, 'YY/MM/DD')
+                END AS PO_DATE
+            FROM
+                POST_TBL
+            WHERE
+                PO_NUM = #{PO_NUM} 
+      ]]>
+   </select>
+   
+   <!-- 첨부파일 조회 -->
+   <select id="selectFileList" parameterType="hashmap" resultType="hashmap">
+      <![CDATA[
+         SELECT
+            FI_NUM,
+            BO_NUM,
+                PO_NUM,
+            ORG_FILE_NAME,
+            STORED_FILE_NAME,
+            ROUND(FILE_SIZE/1024, 1) AS FILE_SIZE,
+            MEM_ID 
+         FROM
+            FILE_TBL
+         WHERE
+             PO_NUM = #{PO_NUM}
+         AND
+            FI_IS_USED = 1
+         AND 
+            BO_NUM = 1
+         ORDER BY FI_NUM ASC
+      
+      ]]>
+   </select>
+   
+   <!-- 첨부파일 다운  -->
+   <select id="selectFileInfo" parameterType="hashmap" resultType="hashmap">
+      <![CDATA[
+         SELECT
+             ORG_FILE_NAME,
+            STORED_FILE_NAME,
+            FILE_SIZE
+         FROM
+            FILE_TBL
+         WHERE
+             FI_NUM = #{FI_NUM}
+         AND
+            FI_IS_USED = 1
+         AND 
+            BO_NUM = #{BO_NUM}
+      ]]>
+   </select>
+   
+   <!-- 첨부파일 삭제 -->
+   <update id="updateFile" parameterType="hashmap">
+      <![CDATA[
+         UPDATE FILE_TBL SET
+         FI_IS_USED = 0
+         WHERE FI_NUM = #{FI_NUM}
+      
+      ]]>
+   </update>
+   
+   
+   <update id="updateHitBoard" parameterType="String">
+      <![CDATA[
+         UPDATE 
+            POST_TBL 
+         SET 
+            PO_CLICKS = PO_CLICKS + 1
+         WHERE
+            PO_NUM = #{PO_NUM}
+      
+      ]]>
+   </update>
+   <update id="contestDeleteBoard">
+        <![CDATA[
+            UPDATE
+                POST_TBL
+            SET
+                PO_IS_USED = 0
+            WHERE
+                PO_NUM = #{PO_NUM}
+        ]]>
+   </update>
+
+   <update id="contestUpdateBoard" parameterType="hashmap">
+        <![CDATA[
+            UPDATE
+                POST_TBL
+            SET
+                PO_TITLE = #{ PO_TITLE},
+                PO_CONTENT = #{ PO_CONTENT}
+            WHERE
+                PO_NUM = #{PO_NUM}
+        ]]>
+   </update>
+   
+   
+
+   <select id="contestListPage" resultType="hashmap"
+      parameterType="com.kkanbu.waltz.vo.SearchCriteria">
+         <![CDATA[
+         SELECT * FROM (
+                SELECT 
+               ROWNUM AS RNUM, 
+               PO_NUM, 
+               PO_TITLE, 
+               MEM_ID, 
+               CASE WHEN TO_CHAR(PO_DATE, 'YY/MM/DD') = TO_CHAR(SYSDATE, 'YY/MM/DD')
+                   THEN TO_CHAR(PO_DATE,'HH:MI')
+                   ELSE TO_CHAR(PO_DATE, 'YY/MM/DD')
+                   END AS PO_DATE, 
+               PO_CLICKS
+         FROM (SELECT * FROM POST_TBL WHERE BO_NUM = 1 AND PO_IS_USED = 1 
+         ]]>
+   <include refid="search" /> 
+         <![CDATA[
+               ORDER BY PO_NUM DESC)) 
+         WHERE RNUM BETWEEN #{pageStart}+1 AND #{pageStart}+12 
+        ]]>
+   </select>
+   
+   
+
+   <select id="contestListCount" resultType="Integer">
+      <![CDATA[
+        SELECT COUNT(*)
+        FROM POST_TBL
+        WHERE PO_IS_USED = 1 AND BO_NUM = 1
+         ]]><include refid="search" />
+   </select>
+   
+   <sql id="search">
+      <if test="searchType != null">
+         <if test="searchType == 't'.toString()">AND PO_TITLE LIKE '%' || #{keyword} || '%'</if>
+         <if test="searchType == 'c'.toString()">AND PO_CONTENT LIKE '%' || #{keyword} || '%'</if>
+         <if test="searchType == 'w'.toString()">AND MEM_ID LIKE '%' || #{keyword} || '%'</if>
+         <if test="searchType == 'tc'.toString()">AND ((PO_TITLE LIKE '%' || #{keyword} || '%') or (PO_CONTENT LIKE '%' || #{keyword} || '%'))</if>
+      </if>
+   </sql>
+   
+   <insert id="writeComment" parameterType="hashmap">
+      <![CDATA[
+         INSERT INTO comment_tbl 
+         VALUES
+         (
+            COMMENT_SEQ.nextval, 
+            #{BO_NUM}, 
+            #{PO_NUM}, 
+            #{CO_CONTENT}, 
+            1, 
+            SYSDATE, 
+            #{MEM_ID}
+         )
+      ]]>
+   </insert>
+   
+   
+   <select id="fileMatchList" parameterType="hashmap" resultType="hashmap">
+      <![CDATA[
+         SELECT * 
+         FROM 
+            FILE_TBL
+         WHERE 
+            PO_NUM=#{PO_NUM} 
+         AND 
+            FI_IS_USED=1
+      ]]>
+   
+   </select>
+   
+
+
+</mapper>

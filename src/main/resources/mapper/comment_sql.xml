@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="comment">
+
+	<select id="readComment" resultType="hashmap"
+		parameterType="String">
+       <![CDATA[
+		SELECT
+			CO_NUM, 
+			BO_NUM, 
+			PO_NUM, CO_CONTENT, 
+			CASE WHEN TO_CHAR(co_date, 'YY/MM/DD') = TO_CHAR(SYSDATE, 'YY/MM/DD')
+			THEN TO_CHAR(co_date,'HH:MI')
+			ELSE TO_CHAR(co_date, 'YY/MM/DD')
+			END AS CO_DATE, 
+			MEM_ID
+		FROM 
+			COMMENT_TBL
+        WHERE 
+        	PO_NUM = #{PO_NUM} AND CO_IS_USED = 1
+        ]]>
+	</select>
+
+	<delete id="commentDeleteBoard">
+       <![CDATA[
+			UPDATE
+               COMMENT_TBL
+            SET
+                CO_IS_USED = 0
+            WHERE CO_NUM = #{CO_NUM}    
+        ]]>
+	</delete>
+
+	<insert id="writeComment">
+	<![CDATA[
+		INSERT INTO 
+		       COMMENT_TBL
+			VALUES(
+			   COMMENT_SEQ.NEXTVAL,
+			   4,
+			   #{PO_NUM},
+			   #{CO_CONTENT},
+			   1,
+			   SYSDATE,
+			   #{MEM_ID}
+			  )
+	]]>
+	</insert>
+
+	<update id="updateComment">
+	<![CDATA[
+		UPDATE 
+			COMMENT_TBL 
+		SET 
+			CO_CONTENT = #{CO_CONTENT}  
+			WHERE CO_NUM = #{CO_NUM}    
+	]]>
+	</update>
+	
+	
+	<select id="commentDetailCount" resultType="Integer">
+      <![CDATA[
+        SELECT COUNT(*)
+        FROM COMMENT_TBL
+        WHERE CO_IS_USED = 1 AND PO_NUM = #{PO_NUM}
+         ]]>
+   </select>
+	
+	
+	
+</mapper>
