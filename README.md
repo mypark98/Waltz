@@ -23,4 +23,3 @@ My first project with four team members.
 #### 개선사항
 * 이미지 로딩 속도 해결 필요
 * 모니터 화면비율에 따른 여백 조정
-
